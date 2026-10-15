@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SAT Missed-Question Sheet Builder</title>
+<style>
+:root{font-family:Arial,Helvetica,sans-serif;color:#172033;background:#f4f6fa}body{margin:0;padding:24px}.wrap{max-width:900px;margin:auto}h1{margin:0 0 8px;font-size:28px}.lead{color:#536078;line-height:1.5}.card{background:#fff;border:1px solid #dbe1eb;border-radius:14px;padding:20px;margin:16px 0;box-shadow:0 2px 8px #1c2c4610}label{display:block;font-weight:700;margin:12px 0 6px}input,select,textarea{font:inherit;box-sizing:border-box;width:100%;padding:11px;border:1px solid #b9c4d5;border-radius:8px;background:#fff}textarea{min-height:68px;resize:vertical}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}button{font:inherit;font-weight:700;border:0;border-radius:8px;padding:12px 16px;cursor:pointer}.primary{background:#174ea6;color:#fff}.secondary{background:#e8edf5;color:#172033}.help{font-size:13px;color:#66738a;line-height:1.45}.status{padding:12px;border-radius:8px;background:#edf4ff;margin-top:12px;white-space:pre-wrap}.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}.preview{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px}.thumb{border:1px solid #dbe1eb;border-radius:8px;padding:8px;overflow:hidden}.thumb img{width:100%;height:160px;object-fit:contain}.thumb b{display:block;margin-top:6px}.moduleBox{border:1px solid #dbe1eb;border-radius:10px;padding:12px;margin:12px 0}.moduleBox label{margin-top:0}.moduleBox textarea{margin-top:6px}@media(max-width:620px){body{padding:12px}.grid{grid-template-columns:1fr}}
+</style></head><body><div class="wrap">
+<h1>SAT Missed-Question Sheet Builder</h1>
+<p class="lead">Choose your practice-test image folder, enter missed question numbers for one or more modules, and generate a Word-compatible document containing only the selected question images. No question headings, dashed borders, or decorative boxes are added.</p>
+<div class="card"><h2>1. Select your image bank</h2><label for="folder">Choose the top-level folder for ONE official practice test</label><input id="folder" type="file" webkitdirectory directory multiple accept="image/*"><p class="help">Select the practice test folder containing Mathematics and Reading &amp; Writing, with Module 1, Module 2 EASY, and Module 2 HARD inside each. Files are processed locally in your browser; they are not uploaded.</p><div id="folderStatus" class="status">No folder selected yet.</div></div>
+<div class="card"><h2>2. Choose the questions to include</h2>
+<p class="help">Enter missed question numbers in any combination of Mathematics and Reading &amp; Writing. You can combine Module 1, Module 2 EASY, and Module 2 HARD from either section in one document.</p>
+<h3>Mathematics</h3>
+<div class="moduleBox"><label for="mathM1">Module 1 — missed question numbers</label><textarea id="mathM1" placeholder="Example: 3, 8, 12"></textarea></div>
+<div class="moduleBox"><label for="mathM2E">Module 2 EASY — missed question numbers</label><textarea id="mathM2E" placeholder="Example: 2, 7, 15 (leave blank if not needed)"></textarea></div>
+<div class="moduleBox"><label for="mathM2H">Module 2 HARD — missed question numbers</label><textarea id="mathM2H" placeholder="Example: 4, 11, 19 (leave blank if not needed)"></textarea></div>
+<h3>Reading &amp; Writing</h3>
+<div class="moduleBox"><label for="rwM1">Module 1 — missed question numbers</label><textarea id="rwM1" placeholder="Example: 3, 8, 12"></textarea></div>
+<div class="moduleBox"><label for="rwM2E">Module 2 EASY — missed question numbers</label><textarea id="rwM2E" placeholder="Example: 2, 7, 15 (leave blank if not needed)"></textarea></div>
+<div class="moduleBox"><label for="rwM2H">Module 2 HARD — missed question numbers</label><textarea id="rwM2H" placeholder="Example: 4, 11, 19 (leave blank if not needed)"></textarea></div>
+<div class="grid"><div><label for="cardSize">Index card size</label><select id="cardSize"><option value="3x5" selected>3 × 5 inches</option><option value="4x6">4 × 6 inches</option><option value="5x8">5 × 8 inches</option></select><p class="help" id="sizeHelp">Images will be sized to fit within a 3 × 5-inch card, with a small margin.</p></div><div><label for="perPage">Questions per printed page</label><select id="perPage"><option value="1">1 per page</option><option value="2">2 per page</option><option value="3" selected>3 per page</option><option value="4">4 per page</option><option value="6">6 per page</option></select><p class="help">This controls page breaks in the Word document. Each image keeps its proportions and is not cropped.</p></div></div>
+<div class="actions"><button class="primary" id="previewBtn">Find &amp; Preview Questions</button><button class="secondary" id="clearBtn">Clear question numbers</button></div><div id="resultStatus" class="status" hidden></div><div id="preview" class="preview"></div><div class="actions"><button class="primary" id="downloadBtn" disabled>Download Word Document</button><button class="secondary" id="printBtn" disabled>Print / Save as PDF</button></div></div>
+<div class="card"><h2>Important notes</h2><ul><li>The document contains the original question images only—no question labels, dashed borders, or decorative boxes. Preview labels are only for your reference and are not inserted into the document.</li><li>Images are sized according to the selected index card size and keep their original proportions.</li><li>This tool uses your existing image files; it does not take screenshots from Bluebook.</li><li>If a requested number cannot be found in its module, the tool reports it instead of silently skipping it.</li></ul></div></div>
+<script>
+const $=id=>document.getElementById(id);let fileIndex=[],selected=[];
+const modules=[{section:'Mathematics',key:'Module 1',input:'mathM1'},{section:'Mathematics',key:'Module 2 EASY',input:'mathM2E'},{section:'Mathematics',key:'Module 2 HARD',input:'mathM2H'},{section:'Reading & Writing',key:'Module 1',input:'rwM1'},{section:'Reading & Writing',key:'Module 2 EASY',input:'rwM2E'},{section:'Reading & Writing',key:'Module 2 HARD',input:'rwM2H'}];
+function normalize(s){return s.toLowerCase().replace(/[_-]+/g,' ').replace(/\s+/g,' ').trim()}
+function sectionMatch(path,section){const p=normalize(path);if(section==='Mathematics')return /(^|\/)(mathematics|math)(\/|$)/i.test(path)||p.includes('/mathematics/');return /(^|\/)(reading ?& ?writing|reading and writing|readingwriting|rw)(\/|$)/i.test(path)}
+function moduleMatch(path,module){const p=normalize(path);if(module==='Module 1')return /(^|\/)module ?1(\/|$)/i.test(p);if(module==='Module 2 EASY')return /(^|\/)module ?2 easy(\/|$)/i.test(p);return /(^|\/)module ?2 hard(\/|$)/i.test(p)}
+function imageNumber(file){const m=file.name.match(/^(\d+)(?:\.[^.]+)?$/);return m?Number(m[1]):null}
+$('folder').addEventListener('change',()=>{fileIndex=Array.from($('folder').files).filter(f=>f.type.startsWith('image/')).map(f=>({file:f,path:f.webkitRelativePath||f.name,num:imageNumber(f)}));const roots=new Set(fileIndex.map(x=>x.path.split('/')[0]));$('folderStatus').textContent=`Loaded ${fileIndex.length} image file(s) from ${roots.size} top-level folder(s).\nEnter missed question numbers for each module you want to combine.`;$('resultStatus').hidden=true;$('preview').innerHTML='';$('downloadBtn').disabled=true;$('printBtn').disabled=true});
+function numbersFromText(s){return [...new Set((s.match(/\d+/g)||[]).map(Number).filter(n=>n>0))].sort((a,b)=>a-b)}
+function findImage(n,module,section){const matches=fileIndex.filter(x=>x.num===n&&sectionMatch(x.path,section)&&moduleMatch(x.path,module));if(matches.length===1)return {item:matches[0]};if(matches.length>1){const exact=matches.filter(x=>normalize(x.path).includes(normalize(section))&&normalize(x.path).includes(normalize(module)));if(exact.length===1)return {item:exact[0]};return {error:`${module}, question ${n}: multiple matching images found.`}}return {error:`${module}, question ${n}: image not found.`}}
+async function toDataURL(file){return await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(file)})}
+async function trimOuterWhitespace(dataURL){
+  return await new Promise((resolve)=>{
+    const img=new Image();
+    img.onload=()=>{
+      try{
+        const canvas=document.createElement('canvas'),ctx=canvas.getContext('2d',{willReadFrequently:true});
+        canvas.width=img.naturalWidth;canvas.height=img.naturalHeight;
+        ctx.drawImage(img,0,0);
+        const pixels=ctx.getImageData(0,0,canvas.width,canvas.height).data;
+        let left=canvas.width,top=canvas.height,right=-1,bottom=-1;
+        // Treat near-white outer background as whitespace; keep light text and antialiasing.
+        for(let y=0;y<canvas.height;y++)for(let x=0;x<canvas.width;x++){
+          const i=(y*canvas.width+x)*4, a=pixels[i+3];
+          if(a>8 && (pixels[i]<248 || pixels[i+1]<248 || pixels[i+2]<248)){
+            if(x<left)left=x;if(x>right)right=x;if(y<top)top=y;if(y>bottom)bottom=y;
+          }
+        }
+        if(right<left||bottom<top){resolve(dataURL);return}
+        const pad=Math.max(8,Math.round(Math.min(canvas.width,canvas.height)*0.012));
+        left=Math.max(0,left-pad);top=Math.max(0,top-pad);
+        right=Math.min(canvas.width-1,right+pad);bottom=Math.min(canvas.height-1,bottom+pad);
+        const w=right-left+1,h=bottom-top+1;
+        if(w<canvas.width*0.45 && h<canvas.height*0.45){resolve(dataURL);return}
+        const out=document.createElement('canvas');out.width=w;out.height=h;
+        out.getContext('2d').drawImage(img,left,top,w,h,0,0,w,h);
+        resolve(out.toDataURL('image/png'));
+      }catch(e){resolve(dataURL)}
+    };
+    img.onerror=()=>resolve(dataURL);img.src=dataURL;
+  });
+}
+function cardWidth(){return {'3x5':2.7,'4x6':3.7,'5x8':4.7}[$('cardSize').value]}
+function updateSizeHelp(){const v=$('cardSize').value;const info={'3x5':'Images will be up to 2.7 inches wide, leaving a small margin on a 3 × 5-inch card.','4x6':'Images will be up to 3.7 inches wide, leaving a small margin on a 4 × 6-inch card.','5x8':'Images will be up to 4.7 inches wide, leaving a small margin on a 5 × 8-inch card.'};$('sizeHelp').textContent=info[v]}
+$('cardSize').addEventListener('change',updateSizeHelp);
+$('previewBtn').addEventListener('click',async()=>{const requests=[];for(const m of modules){for(const n of numbersFromText($(m.input).value))requests.push({number:n,module:m.key,section:m.section})} $('preview').innerHTML='';selected=[];if(!fileIndex.length){$('resultStatus').hidden=false;$('resultStatus').textContent='Please select the top-level folder for one practice test first.';return}if(!requests.length){$('resultStatus').hidden=false;$('resultStatus').textContent='Enter at least one question number in one of the module boxes.';return}const errors=[];for(const r of requests){const f=findImage(r.number,r.module,r.section);if(f.error){errors.push(f.error);continue}selected.push({number:r.number,module:r.module,section:r.section,file:f.item.file,path:f.item.path,data:null})}for(const item of selected){item.data=await toDataURL(item.file);if(item.section==='Reading & Writing')item.data=await trimOuterWhitespace(item.data);const d=document.createElement('div');d.className='thumb';const img=document.createElement('img');img.src=item.data;const b=document.createElement('b');b.textContent=`${item.section} · ${item.module} · Question ${item.number}`;const small=document.createElement('div');small.className='help';small.textContent=item.path;d.append(img,b,small);$('preview').append(d)}$('resultStatus').hidden=false;$('resultStatus').textContent=`Found ${selected.length} of ${requests.length} requested question image(s).`+(errors.length?'\n\nNot found / ambiguous:\n• '+errors.join('\n• '):'')+(selected.length?'\nReview the thumbnails, then download the Word document.':'');$('downloadBtn').disabled=!selected.length;$('printBtn').disabled=!selected.length});
+function makeDocument(){const width=cardWidth(),perPage=Number($('perPage').value);let images='';selected.forEach((x,i)=>{images+=`<p style="margin:0 0 6pt 0;padding:0;line-height:normal"><img src="${x.data}" width="${Math.round(width*96)}" style="width:${width}in;height:auto;max-width:none;border:0;display:inline-block;margin:0;padding:0;mso-wrap-style:tight;v-text-anchor:top;object-fit:contain" /></p>`;if((i+1)%perPage===0&&i<selected.length-1)images+='<p style="page-break-after:always;margin:0;padding:0;font-size:1pt;line-height:1pt">&nbsp;</p>'});return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>SAT Missed Questions</title><style>@page{size:letter;margin:.45in}body{font-family:Arial,sans-serif;margin:0;padding:0}p{orphans:1;widows:1}img{height:auto;border:0;mso-wrap-style:tight}</style></head><body>${images}</body></html>`}
+$('downloadBtn').addEventListener('click',()=>{const blob=new Blob(['\ufeff',makeDocument()],{type:'application/msword'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='SAT_Missed_Questions.doc';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1500)});
+$('printBtn').addEventListener('click',()=>{const w=window.open('','_blank');if(!w){alert('Your browser blocked the print window. Allow pop-ups for this file and try again.');return}w.document.open();w.document.write(makeDocument());w.document.close();w.onload=()=>{w.focus();w.print()}});
+$('clearBtn').addEventListener('click',()=>{for(const m of modules)$(m.input).value='';$('preview').innerHTML='';selected=[];$('resultStatus').hidden=true;$('downloadBtn').disabled=true;$('printBtn').disabled=true});updateSizeHelp();
+</script></body></html>
