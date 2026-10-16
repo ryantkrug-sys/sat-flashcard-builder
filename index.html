@@ -2,14 +2,15 @@
 <html lang="en">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>SAT Missed-Question Flashcard Builder</title>
+<title>SAT &amp; PSAT Missed-Question Flashcard Builder</title>
 <style>
 :root{font-family:Arial,Helvetica,sans-serif;color:#172033;background:#f4f7fb}*{box-sizing:border-box}body{margin:0;padding:24px}.wrap{max-width:1000px;margin:auto}.hero{background:#173b68;color:white;padding:26px;border-radius:16px;margin-bottom:18px}.hero h1{margin:0 0 8px;font-size:28px}.hero p{margin:0;line-height:1.5}.panel{background:white;border:1px solid #dce3ed;border-radius:14px;padding:20px;margin:14px 0;box-shadow:0 3px 12px #13294b0a}h2{font-size:18px;margin:0 0 14px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}.field label{display:block;font-weight:700;margin-bottom:7px}.field select,.field input{width:100%;padding:11px;border:1px solid #cbd5e1;border-radius:8px;font-size:15px;background:white}.hint{font-size:13px;color:#536278;line-height:1.5}.status{padding:12px;border-radius:8px;background:#eef4ff;color:#23436e;margin:12px 0}.status.error{background:#fff0f0;color:#8d2020}.status.ok{background:#eaf8ef;color:#17643a}.buttons{display:flex;flex-wrap:wrap;gap:10px;margin-top:15px}.btn{border:0;border-radius:9px;padding:12px 16px;font-size:15px;font-weight:700;cursor:pointer;background:#1d5fa7;color:white}.btn.secondary{background:#e8eef6;color:#20364f}.btn:disabled{opacity:.5;cursor:wait}.questions{display:grid;grid-template-columns:repeat(auto-fill,minmax(78px,1fr));gap:8px;max-height:300px;overflow:auto;padding:10px;border:1px solid #dce3ed;border-radius:10px}.qitem{display:flex;align-items:center;gap:6px;background:#f6f8fb;padding:8px;border-radius:7px;font-size:14px}.qitem input{width:auto}.hidden{display:none}.foot{font-size:12px;color:#607086;margin:18px 2px}
 </style></head>
 <body><main class="wrap">
-<header class="hero"><h1>SAT Missed-Question Flashcard Builder</h1><p>Select a practice test, section, and module, then choose the questions you want to review. The question images are loaded from the online question bank.</p></header>
+<header class="hero"><h1>SAT &amp; PSAT Missed-Question Flashcard Builder</h1><p>Choose SAT, PSAT 10, or PSAT 8/9, then select a practice test, section, and module. Question images load from the online question bank.</p></header>
 <section class="panel"><h2>1. Choose the questions</h2><div class="grid">
-<div class="field"><label for="test">Practice test</label><select id="test"><option value="4">Test 4</option><option value="5">Test 5</option><option value="6">Test 6</option><option value="7">Test 7</option><option value="8">Test 8</option><option value="9">Test 9</option><option value="10">Test 10</option><option value="11">Test 11</option></select></div>
+<div class="field"><label for="collection">Test collection</label><select id="collection"><option value="sat">SAT</option><option value="psat10">PSAT 10</option><option value="psat89">PSAT 8/9</option></select></div>
+<div class="field"><label for="test">Practice test</label><select id="test"></select></div>
 <div class="field"><label for="section">Section</label><select id="section"><option value="math">Mathematics</option><option value="rw">Reading &amp; Writing</option></select></div>
 <div class="field"><label for="module">Module</label><select id="module"><option value="m1">Module 1</option><option value="easy">Module 2 Easy</option><option value="hard">Module 2 Hard</option></select></div>
 </div><div id="status" class="status">Connecting to the question bank…</div>
@@ -29,19 +30,23 @@
  const TREE_URL=`https://api.github.com/repos/${OWNER}/${REPO}/git/trees/${BRANCH}?recursive=1`;
  const RAW_BASE=`https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH}/`;
  const $=id=>document.getElementById(id); let files=[], current=[];
+ const testCounts={sat:[4,5,6,7,8,9,10,11],psat10:[1,2,3],psat89:[1,2]};
+ function collectionLabel(){return ({sat:'SAT',psat10:'PSAT 10',psat89:'PSAT 8/9'})[$('collection').value]}
+ function updateTestOptions(){const sel=$('test'),old=sel.value,vals=testCounts[$('collection').value];sel.innerHTML='';vals.forEach(n=>{const o=document.createElement('option');o.value=String(n);o.textContent='Test '+n;sel.append(o)});if(vals.includes(Number(old)))sel.value=old;}
  const status=(message,kind='')=>{const el=$('status');el.textContent=message;el.className='status'+(kind?' '+kind:'')};
  const exportStatus=(message,kind='')=>{const el=$('exportStatus');el.textContent=message;el.className='status'+(kind?' '+kind:'');el.classList.remove('hidden')};
  function norm(s){return decodeURIComponent(s).toLowerCase().replace(/&/g,'and').replace(/[^a-z0-9]+/g,' ').trim().replace(/\s+/g,' ')}
  function moduleMatches(seg,want){const n=norm(seg);if(want==='m1')return /^module 1$/.test(n);if(want==='easy')return /^module 2 easy$/.test(n)||/^module 2 (?:easier|easy)$/.test(n);return /^module 2 hard$/.test(n)||/^module 2 difficult$/.test(n)}
  function imageNum(path){const base=path.split('/').pop();const m=base.match(/^(\d+)(?:\s*\([^)]*\))?\.(png|jpe?g|webp|gif)$/i);return m?Number(m[1]):null}
- function filtered(){const test='test '+$('test').value;const section=$('section').value==='math'?'mathematics':'reading and writing';const mod=$('module').value;
- return files.filter(f=>{const p=f.path.split('/');const ns=p.map(norm);return ns.some(x=>x===test)&&ns.some(x=>x===section)&&p.some(x=>moduleMatches(x,mod))&&imageNum(f.path)!==null;}).sort((a,b)=>imageNum(a.path)-imageNum(b.path)||a.path.localeCompare(b.path));}
+ function filtered(){const test='test '+$('test').value;const section=$('section').value==='math'?'mathematics':'reading and writing';const mod=$('module').value;const collection=$('collection').value;
+ return files.filter(f=>{const p=f.path.split('/');const ns=p.map(norm);const hasTest=ns.some(x=>x===test);const hasSection=ns.some(x=>x===section);let hasCollection=false;if(collection==='sat'){hasCollection=Number($('test').value)>=4&&ns.some(x=>/^test (4|5|6|7|8|9|10|11)$/.test(x));}else if(collection==='psat10'){hasCollection=ns.some(x=>x==='psat 10');}else{hasCollection=ns.some(x=>x==='psat 8 9'||x==='psat 8 9 practice tests'||x==='psat 8 9 test');}return hasCollection&&hasTest&&hasSection&&p.some(x=>moduleMatches(x,mod))&&imageNum(f.path)!==null;}).sort((a,b)=>imageNum(a.path)-imageNum(b.path)||a.path.localeCompare(b.path));}
  function renderQuestions(){const box=$('questions');box.innerHTML='';current=filtered();if(!current.length){status('No images matched this selection. Check that the question-bank folders use the expected names.','error');$('qhint').textContent='No questions were found for this combination.';return}
  current.forEach((f,i)=>{const n=imageNum(f.path);const label=document.createElement('label');label.className='qitem';const cb=document.createElement('input');cb.type='checkbox';cb.value=f.path;cb.checked=false;const text=document.createElement('span');text.textContent='Question '+n;label.append(cb,text);box.append(label)});
  status(`Question bank connected. Found ${current.length} images for ${testLabel()} — ${$('section').selectedOptions[0].text} — ${$('module').selectedOptions[0].text}.`,'ok');$('qhint').textContent='Select the question numbers you missed. You can select any combination.';
  }
- function testLabel(){return 'Test '+$('test').value}
+ function testLabel(){return collectionLabel()+' Test '+$('test').value}
  async function init(){try{status('Loading the question-bank file list…');const r=await fetch(TREE_URL,{headers:{Accept:'application/vnd.github+json'}});if(!r.ok)throw new Error('GitHub returned '+r.status+'.');const data=await r.json();if(data.truncated)throw new Error('GitHub returned an incomplete file list.');files=(data.tree||[]).filter(x=>x.type==='blob'&&/\.(png|jpe?g|webp|gif)$/i.test(x.path));if(!files.length)throw new Error('No supported image files were found in the repository.');renderQuestions()}catch(e){status('Could not load the question bank: '+e.message+' Make sure the sat-question-bank repository is public, then refresh this page.','error')}}
+ $('collection').addEventListener('change',()=>{updateTestOptions();renderQuestions()});
  ['test','section','module'].forEach(id=>$(id).addEventListener('change',renderQuestions));
  $('allBtn').addEventListener('click',()=>document.querySelectorAll('#questions input[type=checkbox]').forEach(x=>x.checked=true));
  $('noneBtn').addEventListener('click',()=>document.querySelectorAll('#questions input[type=checkbox]').forEach(x=>x.checked=false));
@@ -54,8 +59,8 @@
  const widths={'3x5':2.7,'4x6':3.7,'5x8':4.7};const width=widths[$('cardSize').value];const per=Number($('perPage').value);const maxHeight=Math.max(1.4,9.9/per);
  let body='';cards.forEach((c,i)=>{body+=`<p class="question"><img src="${c.data}" alt="Question ${c.num}" width="${Math.round(width*96)}" style="width:${width}in;max-width:100%;max-height:${maxHeight}in;height:auto;object-fit:contain;border:0;display:block;margin:0;padding:0" /></p>`;if((i+1)%per===0&&i<cards.length-1)body+='<p style="page-break-after:always;break-after:page;margin:0;padding:0;font-size:1pt;line-height:1pt">&nbsp;</p>'});
  const html=`<!doctype html><html><head><meta charset="utf-8"><title>SAT Missed Questions</title><style>@page{size:letter;margin:.45in}*{box-sizing:border-box}body{font-family:Arial,sans-serif;margin:0;padding:0;color:#111}.question{margin:0 0 6pt 0;padding:0;line-height:normal;page-break-inside:avoid;break-inside:avoid}img{height:auto;border:0;mso-wrap-style:tight;vertical-align:top}p{orphans:1;widows:1}</style></head><body>${body}</body></html>`;
- const blob=new Blob(['\ufeff',html],{type:'application/msword'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`SAT_Flashcards_${$('test').value}_${$('section').value}_${$('module').value}.doc`;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);exportStatus('Document created with image-only layout and no dashed borders. Open it in Word and check the page layout before printing.','ok');
+ const blob=new Blob(['\ufeff',html],{type:'application/msword'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`${collectionLabel().replace(/[^A-Za-z0-9]+/g,'_')}_Test_${$('test').value}_${$('section').value}_${$('module').value}.doc`;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);exportStatus('Document created with image-only layout and no dashed borders. Open it in Word and check the page layout before printing.','ok');
  }catch(e){exportStatus('Could not create the document: '+e.message,'error')}finally{btn.disabled=false}}
- $('makeBtn').addEventListener('click',makeDoc);init();
+ $('makeBtn').addEventListener('click',makeDoc);updateTestOptions();init();
 })();
 </script></body></html>
