@@ -40,8 +40,51 @@
  function imageInfo(path){const base=path.split('/').pop();const m=base.match(/^(\d+)([a-z]?)(?:\s*\([^)]*\))?\.(png|jpe?g|webp|gif)$/i);return m?{number:Number(m[1]),suffix:m[2].toLowerCase()}:null}
  function imageNum(path){const info=imageInfo(path);return info?info.number:null}
  function imageLabel(path){const info=imageInfo(path);return info?String(info.number)+info.suffix:''}
- function filtered(){const test='test '+$('test').value;const section=$('section').value;const mod=$('module').value;const collection=$('collection').value;
- return files.filter(f=>{const p=f.path.split('/');const ns=p.map(norm);const hasTest=ns.some(x=>x===test);const hasSection=section==='math'?ns.some(x=>x==='mathematics'):ns.some(x=>x==='reading and writing'||x==='reading');let hasCollection=false;if(collection==='sat'){hasCollection=Number($('test').value)>=4&&ns.some(x=>/^test (4|5|6|7|8|9|10|11)$/.test(x));}else if(collection==='psat10'){hasCollection=ns.some(x=>x==='psat 10');}else{hasCollection=ns.some(x=>x==='psat 8 9'||x==='psat 8 9 practice tests'||x==='psat 8 9 test');}return hasCollection&&hasTest&&hasSection&&p.some(x=>moduleMatches(x,mod))&&imageInfo(f.path)!==null;}).sort((a,b)=>imageNum(a.path)-imageNum(b.path)||imageLabel(a.path).localeCompare(imageLabel(b.path))||a.path.localeCompare(b.path));}
+
+function filtered(){
+  const test='test '+$('test').value;
+  const section=$('section').value;
+  const mod=$('module').value;
+  const collection=$('collection').value;
+
+  const matches=files.filter(f=>{
+    const p=f.path.split('/');
+    const ns=p.map(norm);
+    const hasTest=ns.some(x=>x===test);
+    const hasSection=section==='math'
+      ? ns.some(x=>x==='mathematics')
+      : ns.some(x=>x==='reading and writing'||x==='reading');
+
+    let hasCollection=false;
+    if(collection==='sat'){
+      hasCollection=Number($('test').value)>=4 &&
+        ns.some(x=>/^test (4|5|6|7|8|9|10|11)$/.test(x));
+    }else if(collection==='psat10'){
+      hasCollection=ns.some(x=>x==='psat 10');
+    }else{
+      hasCollection=ns.some(x=>
+        x==='psat 8 9'||
+        x==='psat 8 9 practice tests'||
+        x==='psat 8 9 test'
+      );
+    }
+
+    return hasCollection&&hasTest&&hasSection&&
+      p.some(x=>moduleMatches(x,mod))&&imageInfo(f.path)!==null;
+  });
+
+  if(collection==='psat10' && Number($('test').value)===3 && section==='rw'){
+    console.log('PSAT 10 Test 3 Reading image paths:',
+      files.filter(f=>f.path.includes('PSAT 10/Test 3/Reading/Module 1')).map(f=>f.path));
+  }
+
+  return matches.sort((a,b)=>
+    imageNum(a.path)-imageNum(b.path)||
+    imageLabel(a.path).localeCompare(imageLabel(b.path))||
+    a.path.localeCompare(b.path)
+  );
+}
+
  function renderQuestions(){const box=$('questions');box.innerHTML='';current=filtered();if(!current.length){status('No images matched this selection. Check that the question-bank folders use the expected names.','error');$('qhint').textContent='No questions were found for this combination.';return}
  current.forEach((f,i)=>{const n=imageNum(f.path);const label=document.createElement('label');label.className='qitem';const cb=document.createElement('input');cb.type='checkbox';cb.value=f.path;cb.checked=false;const text=document.createElement('span');text.textContent='Question '+imageLabel(f.path);label.append(cb,text);box.append(label)});
  status(`Question bank connected. Found ${current.length} images for ${testLabel()} — ${$('section').selectedOptions[0].text} — ${$('module').selectedOptions[0].text}.`,'ok');$('qhint').textContent='Select the question numbers you missed. You can select any combination.';
