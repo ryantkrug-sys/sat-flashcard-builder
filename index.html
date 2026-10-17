@@ -29,7 +29,7 @@
  const TREE_URL=`https://api.github.com/repos/${OWNER}/${REPO}/git/trees/${BRANCH}?recursive=1`;
  const RAW_BASE=`https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH}/`;
  const $=id=>document.getElementById(id); let files=[], current=[]; const selectedPaths=new Set();
- const testCounts={sat:[4,5,6,7,8,9,10,11],psat10:[1,2,3],psat89:[1,2]};
+const testCounts={sat:[4,5,6,7,8,9,10,11],psat10:[1,2,3],psat89:[1,2,3]};
  function collectionLabel(){return ({sat:'SAT',psat10:'PSAT 10',psat89:'PSAT 8/9'})[$('collection').value]}
  function updateTestOptions(){const sel=$('test'),collection=$('collection').value;sel.innerHTML='';const placeholder=document.createElement('option');placeholder.value='';placeholder.textContent=collection?'Select test number':'Select test type first';placeholder.selected=true;placeholder.disabled=true;sel.append(placeholder);sel.disabled=!collection;if(!collection)return;(testCounts[collection]||[]).forEach(n=>{const o=document.createElement('option');o.value=String(n);o.textContent='Test '+n;sel.append(o)});sel.value='';}
  const status=(message,kind='')=>{const el=$('status');el.textContent=message;el.className='status'+(kind?' '+kind:'')};
