@@ -547,12 +547,12 @@ h2{font-size:18px;margin:0 0 14px}
          throw new Error(`Word preparation check failed: expected ${expectedParagraphs} document paragraphs but built ${children.length}. No file was created.`);
        }
 
-       const selected=[...document.querySelectorAll('#questions input:checked')]
-         sections:[{
-           properties:{
-             page:{
-               size:{width:12240,height:15840},
-               margin:{top:648,right:648,bottom:648,left:648}
+       const doc = new Document({
+         sections: [{
+           properties: {
+             page: {
+               size: { width: 12240, height: 15840 },
+               margin: { top: 648, right: 648, bottom: 648, left: 648 }
              }
            },
            children
