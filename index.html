@@ -464,51 +464,56 @@ h2{font-size:18px;margin:0 0 14px}
 
        const {jsPDF}=window.jspdf;
        const pdf=new jsPDF({orientation:'portrait',unit:'in',format:'letter'});
-       const pageW=8.5,pageH=11,margin=.45,usableH=pageH-.9;
-       let y=margin;
+       const pageW=8.5,pageH=11,margin=.45,gap=.12;
+       const usableW=pageW-2*margin;
+       const usableH=pageH-2*margin;
+       const drawW=Math.min(width,usableW);
+       const slotH=(usableH-gap*(per-1))/per;
+       let added=0;
 
        for(let i=0;i<cards.length;i++){
-         exportStatus(`Adding image ${i+1} of ${cards.length} to PDF…`);
-
-         if(i>0&&i%per===0){
-           pdf.addPage();
-           y=margin;
-         }
+         const slot=i%per;
+         if(i>0&&slot===0) pdf.addPage();
 
          const c=cards[i];
-         const drawW=Math.min(width,pageW-2*margin);
-         const drawH=Math.min(drawW*c.h/c.w,Math.max(1.2,usableH/per));
-
-         if(y+drawH>pageH-margin){
-           pdf.addPage();
-           y=margin;
-         }
-
+         exportStatus(`Adding image ${i+1} of ${cards.length} to PDF…`);
+         const ratio=Math.min(drawW/c.w,slotH/c.h);
+         const imageW=c.w*ratio;
+         const imageH=c.h*ratio;
+         const x=margin+(usableW-imageW)/2;
+         const slotTop=margin+slot*(slotH+gap);
+         const y=slotTop+(slotH-imageH)/2;
          const type=c.data.startsWith('data:image/jpeg')||c.data.startsWith('data:image/jpg')?'JPEG':'PNG';
-         pdf.addImage(c.data,type,margin,y,drawW,drawH,undefined,'FAST');
-         y+=drawH+.12;
+         pdf.addImage(c.data,type,x,y,imageW,imageH,`question-${i}-${c.num}`,'FAST');
+         added++;
        }
 
-       if(cards.length!==selected.length){
-         throw new Error('The PDF did not include every selected image.');
+       if(added!==selected.length||added!==cards.length){
+         throw new Error(`PDF verification failed: added ${added} of ${selected.length} selected images. No file was downloaded.`);
        }
-
+       const pdfBlob=pdf.output('blob');
+       if(!pdfBlob||pdfBlob.size===0){
+         throw new Error('The PDF file was empty. No file was downloaded.');
+       }
        pdf.save(baseName+'.pdf');
-       exportStatus(`PDF created successfully with all ${cards.length} selected images. For best print results, choose Actual Size or 100% in your printer settings.`,'ok');
+       exportStatus(`PDF created with ${added} selected images: ${cards.map(c=>'Question '+c.num).join(', ')}. Check the downloaded file to confirm all listed questions appear.`,'ok');
 
      }else{
        if(!window.docx){
          throw new Error('The Word document library could not load. Check your internet connection and try again.');
        }
 
-       const {Document,Packer,Paragraph,ImageRun}=window.docx;
+       const {Document,Packer,Paragraph,ImageRun,PageBreak}=window.docx;
        const children=[];
 
        for(let i=0;i<cards.length;i++){
          const c=cards[i];
          exportStatus(`Adding image ${i+1} of ${cards.length} to Word document…`);
 
-         const breakBefore=i>0&&i%per===0;
+         if(i>0 && i%per===0){
+           children.push(new Paragraph({children:[new PageBreak()]}));
+         }
+
          const maxW=Math.round(width*96);
          const maxH=Math.round(Math.max(1.4,9.9/per)*96);
          const scale=Math.min(maxW/c.w,maxH/c.h,1);
@@ -519,23 +524,27 @@ h2{font-size:18px;margin:0 0 14px}
          }
 
          const imageType=(ext==='image/jpeg'||ext==='image/jpg')?'jpg':'png';
+         const imageBytes=dataUrlBytes(c.data);
+         if(imageBytes.length<8){
+           throw new Error(`Question ${c.num} has empty image data. No file was created.`);
+         }
 
          children.push(new Paragraph({
            children:[new ImageRun({
-             data:dataUrlBytes(c.data),
+             data:imageBytes,
              type:imageType,
              transformation:{
                width:Math.max(1,Math.round(c.w*scale)),
                height:Math.max(1,Math.round(c.h*scale))
              }
            })],
-           spacing:{after:120},
-           pageBreakBefore:breakBefore
+           spacing:{after:120}
          }));
        }
 
-       if(children.length!==cards.length){
-         throw new Error(`Only ${children.length} of ${cards.length} selected images were prepared for Word. No file was created.`);
+       const expectedParagraphs=cards.length+Math.floor((cards.length-1)/per);
+       if(children.length!==expectedParagraphs){
+         throw new Error(`Word preparation check failed: expected ${expectedParagraphs} document paragraphs but built ${children.length}. No file was created.`);
        }
 
        const doc=new Document({
@@ -565,7 +574,7 @@ h2{font-size:18px;margin:0 0 14px}
        a.remove();
        setTimeout(()=>URL.revokeObjectURL(url),60000);
 
-       exportStatus(`Word document created successfully with all ${cards.length} selected images. Open the .docx file in Microsoft Word.`,'ok');
+       exportStatus(`Word document created with ${cards.length} selected images: ${cards.map(c=>'Question '+c.num).join(', ')}. Check the downloaded file to confirm all listed questions appear.`,'ok');
      }
 
    }catch(e){
