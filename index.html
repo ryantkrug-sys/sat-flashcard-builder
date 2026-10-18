@@ -416,9 +416,9 @@ h2{font-size:18px;margin:0 0 14px}
  }
 
  async function makeDoc(){
-   const selected=[...document.querySelectorAll('#questions input:checked')]
-     .map(cb=>current.find(f=>f.path===cb.value))
-     .filter(Boolean);
+ const selected=[...document.querySelectorAll('#questions input[type="checkbox"]:checked')]
+  .map(cb=>current.find(f=>f.path===cb.value))
+  .filter(Boolean);
 
    if(!selected.length){
      exportStatus('Please select at least one question before creating the document.','error');
@@ -547,7 +547,7 @@ h2{font-size:18px;margin:0 0 14px}
          throw new Error(`Word preparation check failed: expected ${expectedParagraphs} document paragraphs but built ${children.length}. No file was created.`);
        }
 
-       const doc=new Document({
+       const selected=[...document.querySelectorAll('#questions input:checked')]
          sections:[{
            properties:{
              page:{
