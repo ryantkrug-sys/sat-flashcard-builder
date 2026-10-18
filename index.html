@@ -9,10 +9,10 @@
 <body><main class="wrap">
 <header class="hero"><h1>SAT &amp; PSAT Missed-Question Flashcard Builder</h1><p>Choose SAT, PSAT 10, or PSAT 8/9, then select a practice test, section, and module. Select the questions you missed, choose your index-card size and how many questions to place on each page, then export your flashcards as a Microsoft Word document, Google Docs-compatible file, or PDF.</p></header>
 <section class="panel"><h2>1. Choose the questions</h2><div class="grid">
-<div class="field"><label for="collection">Test collection</label><select id="collection"><option value="sat">SAT</option><option value="psat10">PSAT 10</option><option value="psat89">PSAT 8/9</option></select></div>
-<div class="field"><label for="test">Practice test</label><select id="test"></select></div>
-<div class="field"><label for="section">Section</label><select id="section"><option value="math">Mathematics</option><option value="rw">Reading &amp; Writing</option></select></div>
-<div class="field"><label for="module">Module</label><select id="module"><option value="m1">Module 1</option><option value="easy">Module 2 Easy</option><option value="hard">Module 2 Hard</option></select></div>
+<div class="field"><label for="collection">Type of Test</label><select id="collection"><option value="">Select a test collection</option><option value="sat">SAT</option><option value="psat10">PSAT 10</option><option value="psat89">PSAT 8/9</option></select></div>
+<div class="field"><label for="test">Practice test</label><select id="test"><option value="">Select a practice test</option></select></div>
+<div class="field"><label for="section">Section</label><select id="section" disabled><option value="">Select a section</option><option value="math">Mathematics</option><option value="rw">Reading &amp; Writing</option></select></div>
+<div class="field"><label for="module">Module</label><select id="module" disabled><option value="">Select a module</option><option value="m1">Module 1</option><option value="easy">Module 2 Easy</option><option value="hard">Module 2 Hard</option></select></div>
 </div><div id="status" class="status">Connecting to the question bank…</div>
 <div class="buttons"><button class="btn secondary" id="allBtn" type="button">Select all</button><button class="btn secondary" id="noneBtn" type="button">Clear selection</button></div>
 <div id="questions" class="questions" aria-label="Available questions"></div><p id="qhint" class="hint">Choose one or more questions. The list updates when you change the test, section, or module.</p>
@@ -33,8 +33,8 @@
  const RAW_BASE=`https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH}/`;
  const $=id=>document.getElementById(id); let files=[], current=[];
  const testCounts={sat:[4,5,6,7,8,9,10,11],psat10:[1,2,3],psat89:[1,2]};
- function collectionLabel(){return ({sat:'SAT',psat10:'PSAT 10',psat89:'PSAT 8/9'})[$('collection').value]}
- function updateTestOptions(){const sel=$('test'),old=sel.value,vals=testCounts[$('collection').value];sel.innerHTML='';vals.forEach(n=>{const o=document.createElement('option');o.value=String(n);o.textContent='Test '+n;sel.append(o)});if(vals.includes(Number(old)))sel.value=old;}
+ function collectionLabel(){return ({sat:'SAT',psat10:'PSAT 10',psat89:'PSAT 8/9'})[$('collection').value]||''}
+ function updateTestOptions(){const sel=$('test'),collection=$('collection').value;sel.innerHTML='';const placeholder=document.createElement('option');placeholder.value='';placeholder.textContent='Select a practice test';sel.append(placeholder);if(!collection){sel.value='';sel.disabled=true;$('section').value='';$('section').disabled=true;$('module').value='';$('module').disabled=true;return;}sel.disabled=false;const vals=testCounts[collection];vals.forEach(n=>{const o=document.createElement('option');o.value=String(n);o.textContent='Test '+n;sel.append(o)});sel.value='';$('section').value='';$('section').disabled=true;$('module').value='';$('module').disabled=true;}
  const status=(message,kind='')=>{const el=$('status');el.textContent=message;el.className='status'+(kind?' '+kind:'')};
  const exportStatus=(message,kind='')=>{const el=$('exportStatus');el.textContent=message;el.className='status'+(kind?' '+kind:'');el.classList.remove('hidden')};
  function norm(s){return decodeURIComponent(s).toLowerCase().replace(/&/g,'and').replace(/[^a-z0-9]+/g,' ').trim().replace(/\s+/g,' ')}
@@ -42,14 +42,16 @@
  function imageNum(path){const base=path.split('/').pop();const m=base.match(/^(\d+)(?:\s*\([^)]*\))?\.(png|jpe?g|webp|gif)$/i);return m?Number(m[1]):null}
  function filtered(){const test='test '+$('test').value;const section=$('section').value==='math'?'mathematics':'reading and writing';const mod=$('module').value;const collection=$('collection').value;
  return files.filter(f=>{const p=f.path.split('/');const ns=p.map(norm);const hasTest=ns.some(x=>x===test);const hasSection=ns.some(x=>x===section);let hasCollection=false;if(collection==='sat'){hasCollection=Number($('test').value)>=4&&ns.some(x=>/^test (4|5|6|7|8|9|10|11)$/.test(x));}else if(collection==='psat10'){hasCollection=ns.some(x=>x==='psat 10');}else{hasCollection=ns.some(x=>x==='psat 8 9'||x==='psat 8 9 practice tests'||x==='psat 8 9 test');}return hasCollection&&hasTest&&hasSection&&p.some(x=>moduleMatches(x,mod))&&imageNum(f.path)!==null;}).sort((a,b)=>imageNum(a.path)-imageNum(b.path)||a.path.localeCompare(b.path));}
- function renderQuestions(){const box=$('questions');box.innerHTML='';current=filtered();if(!current.length){status('No images matched this selection. Check that the question-bank folders use the expected names.','error');$('qhint').textContent='No questions were found for this combination.';return}
+ function renderQuestions(){const box=$('questions');box.innerHTML='';current=[];if(!$('collection').value){status('Please select a type of test to begin.');$('qhint').textContent='Choose a test type, then select a practice test, section, and module.';return}if(!$('test').value){status('Please select a practice test to continue.');$('qhint').textContent='Choose a practice test before selecting a section and module.';return}if(!$('section').value){status('Please select a section.');$('qhint').textContent='Choose Mathematics or Reading & Writing.';return}if(!$('module').value){status('Please select a module.');$('qhint').textContent='Choose Module 1, Module 2 Easy, or Module 2 Hard.';return}current=filtered();if(!current.length){status('No images matched this selection. Check that the question-bank folders use the expected names.','error');$('qhint').textContent='No questions were found for this combination.';return}
  current.forEach((f,i)=>{const n=imageNum(f.path);const label=document.createElement('label');label.className='qitem';const cb=document.createElement('input');cb.type='checkbox';cb.value=f.path;cb.checked=false;const text=document.createElement('span');text.textContent='Question '+n;label.append(cb,text);box.append(label)});
  status(`Question bank connected. Found ${current.length} images for ${testLabel()} — ${$('section').selectedOptions[0].text} — ${$('module').selectedOptions[0].text}.`,'ok');$('qhint').textContent='Select the question numbers you missed. You can select any combination.';
  }
  function testLabel(){return collectionLabel()+' Test '+$('test').value}
  async function init(){try{status('Loading the question-bank file list…');const r=await fetch(TREE_URL,{headers:{Accept:'application/vnd.github+json'}});if(!r.ok)throw new Error('GitHub returned '+r.status+'.');const data=await r.json();if(data.truncated)throw new Error('GitHub returned an incomplete file list.');files=(data.tree||[]).filter(x=>x.type==='blob'&&/\.(png|jpe?g|webp|gif)$/i.test(x.path));if(!files.length)throw new Error('No supported image files were found in the repository.');renderQuestions()}catch(e){status('Could not load the question bank: '+e.message+' Make sure the sat-question-bank repository is public, then refresh this page.','error')}}
  $('collection').addEventListener('change',()=>{updateTestOptions();renderQuestions()});
- ['test','section','module'].forEach(id=>$(id).addEventListener('change',renderQuestions));
+ $('test').addEventListener('change',()=>{const chosen=!!$('test').value;$('section').disabled=!chosen;$('module').disabled=true;$('section').value='';$('module').value='';renderQuestions()});
+ $('section').addEventListener('change',()=>{const chosen=!!$('section').value;$('module').disabled=!chosen;$('module').value='';renderQuestions()});
+ $('module').addEventListener('change',renderQuestions);
  $('allBtn').addEventListener('click',()=>document.querySelectorAll('#questions input[type=checkbox]').forEach(x=>x.checked=true));
  $('noneBtn').addEventListener('click',()=>document.querySelectorAll('#questions input[type=checkbox]').forEach(x=>x.checked=false));
  function esc(s){return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
@@ -80,6 +82,6 @@
  }
  }catch(e){exportStatus('Could not create the file: '+e.message,'error')}finally{btn.disabled=false}}
  $('exportFormat').addEventListener('change',()=>{const f=$('exportFormat').value;$('makeBtn').textContent=f==='pdf'?'Create PDF':f==='google'?'Prepare for Google Docs':'Create Word document';$('formatHint').textContent=f==='word'?'Microsoft Word is the recommended option.':f==='google'?'A compatible .doc file will download. Upload it to Google Drive, then open it with Google Docs. No paid subscription is required.':'A printable PDF will download. For best print results, choose Actual Size or 100% in your printer settings.'});
- $('makeBtn').addEventListener('click',makeDoc);updateTestOptions();init();
+ $('makeBtn').addEventListener('click',makeDoc);updateTestOptions();status('Please select a type of test to begin.');$('qhint').textContent='Choose SAT, PSAT 10, or PSAT 8/9, then select a practice test, section, and module.';init();
 })();
 </script></body></html>
