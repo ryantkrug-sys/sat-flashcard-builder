@@ -89,6 +89,7 @@ h2{font-size:18px;margin:0 0 14px}
 <div class="field">
 <label for="cardSize">Index-card size</label>
 <select id="cardSize">
+<option value="" selected disabled>Select index-card size</option>
 <option value="3x5">3 × 5 inches</option>
 <option value="4x6">4 × 6 inches</option>
 <option value="5x8">5 × 8 inches</option>
@@ -97,6 +98,7 @@ h2{font-size:18px;margin:0 0 14px}
 <div class="field">
 <label for="perPage">Questions per page</label>
 <select id="perPage">
+<option value="" selected disabled>Select questions per page</option>
 <option value="1">1 question per page</option>
 <option value="2">2 questions per page</option>
 <option value="3">3 questions per page</option>
@@ -106,6 +108,7 @@ h2{font-size:18px;margin:0 0 14px}
 <div class="field">
 <label for="exportFormat">Export format</label>
 <select id="exportFormat">
+<option value="" selected disabled>Select export format</option>
 <option value="word">Microsoft Word (.docx) — Recommended</option>
 <option value="pdf">PDF</option>
 </select>
@@ -113,7 +116,7 @@ h2{font-size:18px;margin:0 0 14px}
 </div>
 <p class="hint" id="formatHint">Word creates an editable document containing all selected images. PDF creates a ready-to-print file.</p>
 <div class="buttons">
-<button class="btn" id="makeBtn" type="button">Create Word Document</button>
+<button class="btn" id="makeBtn" type="button">Create Flashcard Document</button>
 </div>
 <div id="exportStatus" class="status hidden"></div>
 </section>
@@ -442,6 +445,19 @@ h2{font-size:18px;margin:0 0 14px}
  }
 
  async function makeDoc(){
+   if(!$('cardSize').value){
+     exportStatus('Please select an index-card size.','error');
+     return;
+   }
+   if(!$('perPage').value){
+     exportStatus('Please select how many questions to place on each page.','error');
+     return;
+   }
+   if(!$('exportFormat').value){
+     exportStatus('Please select an export format.','error');
+     return;
+   }
+
    const selected=[...selectedPaths]
      .map(path=>files.find(f=>f.path===path))
      .filter(Boolean);
