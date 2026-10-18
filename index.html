@@ -7,7 +7,7 @@
 :root{font-family:Arial,Helvetica,sans-serif;color:#172033;background:#f4f7fb}*{box-sizing:border-box}body{margin:0;padding:24px}.wrap{max-width:1000px;margin:auto}.hero{background:#173b68;color:white;padding:26px;border-radius:16px;margin-bottom:18px}.hero h1{margin:0 0 8px;font-size:28px}.hero p{margin:0;line-height:1.5}.panel{background:white;border:1px solid #dce3ed;border-radius:14px;padding:20px;margin:14px 0;box-shadow:0 3px 12px #13294b0a}h2{font-size:18px;margin:0 0 14px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}.field label{display:block;font-weight:700;margin-bottom:7px}.field select,.field input{width:100%;padding:11px;border:1px solid #cbd5e1;border-radius:8px;font-size:15px;background:white}.hint{font-size:13px;color:#536278;line-height:1.5}.status{padding:12px;border-radius:8px;background:#eef4ff;color:#23436e;margin:12px 0}.status.error{background:#fff0f0;color:#8d2020}.status.ok{background:#eaf8ef;color:#17643a}.buttons{display:flex;flex-wrap:wrap;gap:10px;margin-top:15px}.btn{border:0;border-radius:9px;padding:12px 16px;font-size:15px;font-weight:700;cursor:pointer;background:#1d5fa7;color:white}.btn.secondary{background:#e8eef6;color:#20364f}.btn:disabled{opacity:.5;cursor:wait}.questions{display:grid;grid-template-columns:repeat(auto-fill,minmax(78px,1fr));gap:8px;max-height:300px;overflow:auto;padding:10px;border:1px solid #dce3ed;border-radius:10px}.qitem{display:flex;align-items:center;gap:6px;background:#f6f8fb;padding:8px;border-radius:7px;font-size:14px}.qitem input{width:auto}.hidden{display:none}.foot{font-size:12px;color:#607086;margin:18px 2px}
 </style></head>
 <body><main class="wrap">
-<header class="hero"><h1>SAT &amp; PSAT Missed-Question Flashcard Builder</h1><p>Choose SAT, PSAT 10, or PSAT 8/9, then select a practice test, section, and module. Select the questions you missed, choose your index-card size and how many questions to place on each page, then export your flashcards as a Microsoft Word document, Google Docs-compatible file, or PDF.</p></header>
+<header class="hero"><h1>SAT &amp; PSAT Missed-Question Flashcard Builder</h1><p>Choose SAT, PSAT 10, or PSAT 8/9, then select a practice test, section, and module. Select the questions you missed, choose your index-card size and how many questions to place on each page, then export your flashcards as a Microsoft Word document or PDF.</p></header>
 <section class="panel"><h2>1. Choose the questions</h2><div class="grid">
 <div class="field"><label for="collection">Type of Test</label><select id="collection"><option value="">Select a test collection</option><option value="sat">SAT</option><option value="psat10">PSAT 10</option><option value="psat89">PSAT 8/9</option></select></div>
 <div class="field"><label for="test">Practice test</label><select id="test"><option value="">Select a practice test</option></select></div>
@@ -20,8 +20,8 @@
 <section class="panel"><h2>2. Set up the flashcard pages</h2><div class="grid">
 <div class="field"><label for="cardSize">Index-card size</label><select id="cardSize"><option value="3x5">3 × 5 inches</option><option value="4x6">4 × 6 inches</option><option value="5x8">5 × 8 inches</option></select></div>
 <div class="field"><label for="perPage">Questions per page</label><select id="perPage"><option value="1">1 question per page</option><option value="2">2 questions per page</option><option value="3">3 questions per page</option><option value="4">4 questions per page</option></select></div>
-<div class="field"><label for="exportFormat">Export format</label><select id="exportFormat"><option value="word">Microsoft Word (.doc) — Recommended</option><option value="google">Google Docs</option><option value="pdf">PDF</option></select></div>
-</div><p class="hint" id="formatHint">Microsoft Word is the recommended option. Google Docs downloads a compatible document that you can upload to Google Drive and open with Google Docs. PDF creates a ready-to-print file.</p>
+<div class="field"><label for="exportFormat">Export format</label><select id="exportFormat"><option value="word">Microsoft Word (.doc) — Recommended</option><option value="pdf">PDF</option></select></div>
+</div><p class="hint" id="formatHint">Microsoft Word is the recommended option. PDF creates a ready-to-print file.</p>
 <div class="buttons"><button class="btn" id="makeBtn" type="button">Create flashcard document</button></div><div id="exportStatus" class="status hidden"></div></section>
 <p class="foot">Question images are retrieved from the public sat-question-bank repository. This tool only reads the bank; it does not modify its files.</p>
 </main>
@@ -31,7 +31,7 @@
  const OWNER='ryantkrug-sys', REPO='sat-question-bank', BRANCH='main';
  const TREE_URL=`https://api.github.com/repos/${OWNER}/${REPO}/git/trees/${BRANCH}?recursive=1`;
  const RAW_BASE=`https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH}/`;
- const $=id=>document.getElementById(id); let files=[], current=[];
+ const $=id=>document.getElementById(id); let files=[], current=[]; const selectedPaths=new Set();
  const testCounts={sat:[4,5,6,7,8,9,10,11],psat10:[1,2,3],psat89:[1,2]};
  function collectionLabel(){return ({sat:'SAT',psat10:'PSAT 10',psat89:'PSAT 8/9'})[$('collection').value]||''}
  function updateTestOptions(){const sel=$('test'),collection=$('collection').value;sel.innerHTML='';const placeholder=document.createElement('option');placeholder.value='';placeholder.textContent='Select a practice test';sel.append(placeholder);if(!collection){sel.value='';sel.disabled=true;$('section').value='';$('section').disabled=true;$('module').value='';$('module').disabled=true;return;}sel.disabled=false;const vals=testCounts[collection];vals.forEach(n=>{const o=document.createElement('option');o.value=String(n);o.textContent='Test '+n;sel.append(o)});sel.value='';$('section').value='';$('section').disabled=true;$('module').value='';$('module').disabled=true;}
@@ -43,45 +43,81 @@
  function filtered(){const test='test '+$('test').value;const section=$('section').value==='math'?'mathematics':'reading and writing';const mod=$('module').value;const collection=$('collection').value;
  return files.filter(f=>{const p=f.path.split('/');const ns=p.map(norm);const hasTest=ns.some(x=>x===test);const hasSection=ns.some(x=>x===section);let hasCollection=false;if(collection==='sat'){hasCollection=Number($('test').value)>=4&&ns.some(x=>/^test (4|5|6|7|8|9|10|11)$/.test(x));}else if(collection==='psat10'){hasCollection=ns.some(x=>x==='psat 10');}else{hasCollection=ns.some(x=>x==='psat 8 9'||x==='psat 8 9 practice tests'||x==='psat 8 9 test');}return hasCollection&&hasTest&&hasSection&&p.some(x=>moduleMatches(x,mod))&&imageNum(f.path)!==null;}).sort((a,b)=>imageNum(a.path)-imageNum(b.path)||a.path.localeCompare(b.path));}
  function renderQuestions(){const box=$('questions');box.innerHTML='';current=[];if(!$('collection').value){status('Please select a type of test to begin.');$('qhint').textContent='Choose a test type, then select a practice test, section, and module.';return}if(!$('test').value){status('Please select a practice test to continue.');$('qhint').textContent='Choose a practice test before selecting a section and module.';return}if(!$('section').value){status('Please select a section.');$('qhint').textContent='Choose Mathematics or Reading & Writing.';return}if(!$('module').value){status('Please select a module.');$('qhint').textContent='Choose Module 1, Module 2 Easy, or Module 2 Hard.';return}current=filtered();if(!current.length){status('No images matched this selection. Check that the question-bank folders use the expected names.','error');$('qhint').textContent='No questions were found for this combination.';return}
- current.forEach((f,i)=>{const n=imageNum(f.path);const label=document.createElement('label');label.className='qitem';const cb=document.createElement('input');cb.type='checkbox';cb.value=f.path;cb.checked=false;const text=document.createElement('span');text.textContent='Question '+n;label.append(cb,text);box.append(label)});
- status(`Question bank connected. Found ${current.length} images for ${testLabel()} — ${$('section').selectedOptions[0].text} — ${$('module').selectedOptions[0].text}.`,'ok');$('qhint').textContent='Select the question numbers you missed. You can select any combination.';
+ current.forEach((f,i)=>{const n=imageNum(f.path);const label=document.createElement('label');label.className='qitem';const cb=document.createElement('input');cb.type='checkbox';cb.value=f.path;cb.checked=selectedPaths.has(f.path);cb.addEventListener('change',()=>{if(cb.checked)selectedPaths.add(f.path);else selectedPaths.delete(f.path);updateSelectionHint()});const text=document.createElement('span');text.textContent='Question '+n;label.append(cb,text);box.append(label)});
+ status(`Question bank connected. Found ${current.length} images for ${testLabel()} — ${$('section').selectedOptions[0].text} — ${$('module').selectedOptions[0].text}.`,'ok');updateSelectionHint();
  }
+ function updateSelectionHint(){const count=selectedPaths.size;$('qhint').textContent=count?`${count} question image(s) selected across modules. Changing modules will keep your previous selections.`:'Select the question numbers you missed. You can change modules and your selections will be kept.'}
+ function clearSelections(){selectedPaths.clear();document.querySelectorAll('#questions input[type=checkbox]').forEach(x=>x.checked=false);updateSelectionHint()}
  function testLabel(){return collectionLabel()+' Test '+$('test').value}
  async function init(){try{status('Loading the question-bank file list…');const r=await fetch(TREE_URL,{headers:{Accept:'application/vnd.github+json'}});if(!r.ok)throw new Error('GitHub returned '+r.status+'.');const data=await r.json();if(data.truncated)throw new Error('GitHub returned an incomplete file list.');files=(data.tree||[]).filter(x=>x.type==='blob'&&/\.(png|jpe?g|webp|gif)$/i.test(x.path));if(!files.length)throw new Error('No supported image files were found in the repository.');renderQuestions()}catch(e){status('Could not load the question bank: '+e.message+' Make sure the sat-question-bank repository is public, then refresh this page.','error')}}
- $('collection').addEventListener('change',()=>{updateTestOptions();renderQuestions()});
- $('test').addEventListener('change',()=>{const chosen=!!$('test').value;$('section').disabled=!chosen;$('module').disabled=true;$('section').value='';$('module').value='';renderQuestions()});
- $('section').addEventListener('change',()=>{const chosen=!!$('section').value;$('module').disabled=!chosen;$('module').value='';renderQuestions()});
+ $('collection').addEventListener('change',()=>{selectedPaths.clear();updateTestOptions();renderQuestions()});
+ $('test').addEventListener('change',()=>{selectedPaths.clear();const chosen=!!$('test').value;$('section').disabled=!chosen;$('module').disabled=true;$('section').value='';$('module').value='';renderQuestions()});
+ $('section').addEventListener('change',()=>{selectedPaths.clear();const chosen=!!$('section').value;$('module').disabled=!chosen;$('module').value='';renderQuestions()});
  $('module').addEventListener('change',renderQuestions);
- $('allBtn').addEventListener('click',()=>document.querySelectorAll('#questions input[type=checkbox]').forEach(x=>x.checked=true));
- $('noneBtn').addEventListener('click',()=>document.querySelectorAll('#questions input[type=checkbox]').forEach(x=>x.checked=false));
+ $('allBtn').addEventListener('click',()=>{current.forEach(f=>selectedPaths.add(f.path));document.querySelectorAll('#questions input[type=checkbox]').forEach(x=>x.checked=true);updateSelectionHint()});
+ $('noneBtn').addEventListener('click',clearSelections);
  function esc(s){return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+ function selectedPathIsReadingWriting(path){return path.split('/').some(part=>norm(part)==='reading and writing')}
  function dataURL(blob){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(blob)})}
- async function fetchImage(path){const response=await fetch(RAW_BASE+path.split('/').map(encodeURIComponent).join('/'));if(!response.ok)throw new Error('Could not retrieve '+path);return await dataURL(await response.blob())}
+ async function fetchImage(path){const response=await fetch(RAW_BASE+path.split('/').map(encodeURIComponent).join('/'));if(!response.ok)throw new Error('Could not retrieve '+path);const source=await dataURL(await response.blob());return await normalizeImage(source)}
+ async function normalizeImage(source){return await new Promise((resolve,reject)=>{const img=new Image();img.onload=()=>{try{const canvas=document.createElement('canvas');canvas.width=img.naturalWidth;canvas.height=img.naturalHeight;canvas.getContext('2d').drawImage(img,0,0);resolve(canvas.toDataURL('image/png'))}catch(e){reject(e)}};img.onerror=()=>reject(new Error('An image could not be decoded.'));img.src=source})}
  async function trimOuterWhitespace(dataURL){return await new Promise(resolve=>{const img=new Image();img.onload=()=>{try{const canvas=document.createElement('canvas'),ctx=canvas.getContext('2d',{willReadFrequently:true});canvas.width=img.naturalWidth;canvas.height=img.naturalHeight;ctx.drawImage(img,0,0);const pixels=ctx.getImageData(0,0,canvas.width,canvas.height).data;let left=canvas.width,top=canvas.height,right=-1,bottom=-1;for(let y=0;y<canvas.height;y++)for(let x=0;x<canvas.width;x++){const i=(y*canvas.width+x)*4,a=pixels[i+3];if(a>8&&(pixels[i]<248||pixels[i+1]<248||pixels[i+2]<248)){left=Math.min(left,x);right=Math.max(right,x);top=Math.min(top,y);bottom=Math.max(bottom,y)}}if(right<left||bottom<top){resolve(dataURL);return}const pad=Math.max(8,Math.round(Math.min(canvas.width,canvas.height)*.012));left=Math.max(0,left-pad);top=Math.max(0,top-pad);right=Math.min(canvas.width-1,right+pad);bottom=Math.min(canvas.height-1,bottom+pad);const w=right-left+1,h=bottom-top+1;if(w<canvas.width*.45&&h<canvas.height*.45){resolve(dataURL);return}const out=document.createElement('canvas');out.width=w;out.height=h;out.getContext('2d').drawImage(img,left,top,w,h,0,0,w,h);resolve(out.toDataURL('image/png'))}catch(e){resolve(dataURL)}};img.onerror=()=>resolve(dataURL);img.src=dataURL})}
- async function makeDoc(){const selected=[...document.querySelectorAll('#questions input:checked')].map(cb=>current.find(f=>f.path===cb.value)).filter(Boolean);if(!selected.length){exportStatus('Please select at least one question before creating the document.','error');return}
- const btn=$('makeBtn'),format=$('exportFormat').value;btn.disabled=true;try{exportStatus(`Preparing ${selected.length} question image(s)…`);const cards=[];for(let i=0;i<selected.length;i++){exportStatus(`Embedding image ${i+1} of ${selected.length}…`);const f=selected[i];let data=await fetchImage(f.path);if($('section').value==='rw')data=await trimOuterWhitespace(data);cards.push({num:imageNum(f.path),data});}
- const widths={'3x5':2.7,'4x6':3.7,'5x8':4.7};const width=widths[$('cardSize').value];const per=Number($('perPage').value);const maxHeight=Math.max(1.4,9.9/per);
- let body='';cards.forEach((c,i)=>{body+=`<p class="question"><img src="${c.data}" alt="Question ${c.num}" width="${Math.round(width*96)}" style="width:${width}in;max-width:100%;max-height:${maxHeight}in;height:auto;object-fit:contain;border:0;display:block;margin:0;padding:0" /></p>`;if((i+1)%per===0&&i<cards.length-1)body+='<p style="page-break-after:always;break-after:page;margin:0;padding:0;font-size:1pt;line-height:1pt">&nbsp;</p>'});
- const baseName=`${collectionLabel().replace(/[^A-Za-z0-9]+/g,'_')}_Test_${$('test').value}_${$('section').value}_${$('module').value}`;
- if(format==='pdf'){
-   if(!window.jspdf||!window.jspdf.jsPDF)throw new Error('The PDF library could not load. Check your internet connection and try again.');
-   const {jsPDF}=window.jspdf;const pdf=new jsPDF({orientation:'portrait',unit:'in',format:'letter'});const pageW=8.5,pageH=11,margin=.45,usableH=pageH-.9;let y=margin;
-   for(let i=0;i<cards.length;i++){
-     if(i>0&&i%per===0){pdf.addPage();y=margin;}
-     const c=cards[i],dims=await new Promise((resolve,reject)=>{const im=new Image();im.onload=()=>resolve({w:im.naturalWidth,h:im.naturalHeight});im.onerror=()=>reject(new Error('An image could not be prepared for the PDF.'));im.src=c.data});
-     const drawW=Math.min(width,pageW-2*margin),drawH=Math.min(drawW*dims.h/dims.w,Math.max(1.2,usableH/per));
-     if(y+drawH>pageH-margin){pdf.addPage();y=margin;}
-     const type=c.data.startsWith('data:image/jpeg')?'JPEG':'PNG';pdf.addImage(c.data,type,margin,y,drawW,drawH,undefined,'FAST');y+=drawH+.12;
-   }
-   pdf.save(baseName+'.pdf');exportStatus('PDF created. It is ready to print or save. For best results, choose Actual Size or 100% in your printer settings.','ok');
- }else{
-   const html=`<!doctype html><html><head><meta charset="utf-8"><title>SAT Missed Questions</title><style>@page{size:letter;margin:.45in}*{box-sizing:border-box}body{font-family:Arial,sans-serif;margin:0;padding:0;color:#111}.question{margin:0 0 6pt 0;padding:0;line-height:normal;page-break-inside:avoid;break-inside:avoid}img{height:auto;border:0;mso-wrap-style:tight;vertical-align:top}p{orphans:1;widows:1}</style></head><body>${body}</body></html>`;
-   const blob=new Blob(['\ufeff',html],{type:'application/msword'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=baseName+'.doc';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);
-   if(format==='google')exportStatus('Google Docs-compatible file downloaded. In Google Drive, choose New → File upload, upload this .doc file, then open it with Google Docs. Google may convert the document when you open it.','ok');
-   else exportStatus('Word document created. Open it in Microsoft Word and check the page layout before printing.','ok');
- }
- }catch(e){exportStatus('Could not create the file: '+e.message,'error')}finally{btn.disabled=false}}
- $('exportFormat').addEventListener('change',()=>{const f=$('exportFormat').value;$('makeBtn').textContent=f==='pdf'?'Create PDF':f==='google'?'Prepare for Google Docs':'Create Word document';$('formatHint').textContent=f==='word'?'Microsoft Word is the recommended option.':f==='google'?'A compatible .doc file will download. Upload it to Google Drive, then open it with Google Docs. No paid subscription is required.':'A printable PDF will download. For best print results, choose Actual Size or 100% in your printer settings.'});
+   async function makeDoc(){
+    // Snapshot the checked paths before any asynchronous work starts.
+    const selected=[...selectedPaths].map(path=>files.find(f=>f.path===path)).filter(Boolean);
+    if(!selected.length){exportStatus('Please select at least one question before creating the document.','error');return}
+    const btn=$('makeBtn'),format=$('exportFormat').value;
+    btn.disabled=true;
+    try{
+      exportStatus(`Preparing ${selected.length} selected question image(s)…`);
+      const cards=[];
+      for(let i=0;i<selected.length;i++){
+        exportStatus(`Loading question ${i+1} of ${selected.length}…`);
+        const f=selected[i];
+        let data=await fetchImage(f.path);
+        if(selectedPathIsReadingWriting(f.path))data=await trimOuterWhitespace(data);
+        cards.push({num:imageNum(f.path),data});
+      }
+      if(cards.length!==selected.length)throw new Error(`Only ${cards.length} of ${selected.length} selected images were prepared. Please try again.`);
+      const widths={'3x5':2.7,'4x6':3.7,'5x8':4.7};
+      const width=widths[$('cardSize').value]||2.7;
+      const per=Math.max(1,Math.min(4,Number($('perPage').value)||1));
+      const baseName=`${collectionLabel().replace(/[^A-Za-z0-9]+/g,'_')}_Test_${$('test').value}_Flashcards_${new Date().toISOString().replace(/[:.]/g,'-')}`;
+      if(format==='pdf'){
+        if(!window.jspdf||!window.jspdf.jsPDF)throw new Error('The PDF library could not load. Check your internet connection and try again.');
+        const {jsPDF}=window.jspdf;
+        const pdf=new jsPDF({orientation:'portrait',unit:'in',format:'letter'});
+        const pageW=8.5,pageH=11,margin=.45,usableH=pageH-2*margin,slotH=usableH/per;
+        for(let i=0;i<cards.length;i++){
+          const slot=i%per;
+          if(i>0&&slot===0)pdf.addPage();
+          const c=cards[i];
+          const dims=await new Promise((resolve,reject)=>{const im=new Image();im.onload=()=>resolve({w:im.naturalWidth,h:im.naturalHeight});im.onerror=()=>reject(new Error(`Question ${c.num} could not be prepared for the PDF.`));im.src=c.data});
+          const drawW=Math.min(width,pageW-2*margin);
+          const drawH=Math.min(drawW*dims.h/dims.w,slotH-.12);
+          const x=(pageW-drawW)/2;
+          const y=margin+slot*slotH;
+          pdf.addImage(c.data,'PNG',x,y,drawW,drawH,undefined,'FAST');
+        }
+        pdf.save(baseName+'.pdf');
+        exportStatus(`PDF created with all ${cards.length} selected questions.`, 'ok');
+      }else{
+        let pages='';
+        const maxImageHeight=Math.max(1.4,9.9/per);
+        for(let i=0;i<cards.length;i+=per){
+          const group=cards.slice(i,i+per);
+          const rows=group.map(c=>`<tr><td align="center" valign="top" style="padding:0 0 8pt 0;page-break-inside:avoid"><img src="${c.data}" alt="Question ${c.num}" width="${Math.round(width*96)}" style="width:${width}in;height:auto;max-height:${maxImageHeight}in;border:0;display:block" /></td></tr>`).join('');
+          pages+=`<table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;page-break-after:always;break-after:page"><tbody>${rows}</tbody></table>`;
+        }
+        const html=`<!doctype html><html><head><meta charset="utf-8"><title>SAT Missed Questions</title><style>@page{size:letter;margin:.45in}body{font-family:Arial,sans-serif;margin:0;padding:0;color:#111}table{border-collapse:collapse}tr,td{page-break-inside:avoid}img{border:0;vertical-align:top}</style></head><body>${pages}</body></html>`;
+        const blob=new Blob(['\ufeff',html],{type:'application/msword'});
+        const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=baseName+'.doc';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);
+        exportStatus(`Word document created with all ${cards.length} selected questions.`, 'ok');
+      }
+    }catch(e){exportStatus('Could not create the file: '+e.message,'error')}
+    finally{btn.disabled=false}
+  }
+$('exportFormat').addEventListener('change',()=>{const f=$('exportFormat').value;$('makeBtn').textContent=f==='pdf'?'Create PDF':'Create Word document';$('formatHint').textContent=f==='word'?'Microsoft Word is the recommended option.':'A printable PDF will download. For best print results, choose Actual Size or 100% in your printer settings.'});
  $('makeBtn').addEventListener('click',makeDoc);updateTestOptions();status('Please select a type of test to begin.');$('qhint').textContent='Choose SAT, PSAT 10, or PSAT 8/9, then select a practice test, section, and module.';init();
 })();
 </script></body></html>
