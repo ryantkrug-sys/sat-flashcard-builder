@@ -63,7 +63,24 @@
  const widths={'3x5':2.7,'4x6':3.7,'5x8':4.7};const width=widths[$('cardSize').value];const per=Number($('perPage').value);const maxHeight=Math.max(1.4,9.9/per);
  let body='';cards.forEach((c,i)=>{body+=`<p class="question"><img src="${c.data}" alt="Question ${c.num}" width="${Math.round(width*96)}" style="width:${width}in;max-width:100%;max-height:${maxHeight}in;height:auto;object-fit:contain;border:0;display:block;margin:0;padding:0" /></p>`;if((i+1)%per===0&&i<cards.length-1)body+='<p style="page-break-after:always;break-after:page;margin:0;padding:0;font-size:1pt;line-height:1pt">&nbsp;</p>'});
  const baseName=`${collectionLabel().replace(/[^A-Za-z0-9]+/g,'_')}_Test_${$('test').value}_${$('section').value}_${$('module').value}`;
- if(format==='pdf'){
+
+  if(format==='google'){
+    const form=document.createElement('form');
+    form.method='POST';
+    form.action='https://script.google.com/macros/s/AKfycbywlIRl9s6FzeMEsd-0mnSL68mTh3d57ttpkaOQXLsnzLaLcXuGzy6kF9iG31tmYcYk7A/exec';
+    form.target='_blank';
+    const payload=document.createElement('input');
+    payload.type='hidden';
+    payload.name='payload';
+    payload.value=JSON.stringify({title:baseName,images:cards});
+    form.appendChild(payload);
+    document.body.appendChild(form);
+    form.submit();
+    form.remove();
+    exportStatus('Sending selected questions to Google Docs…','ok');
+    return;
+  }
+   if(format==='pdf'){
    if(!window.jspdf||!window.jspdf.jsPDF)throw new Error('The PDF library could not load. Check your internet connection and try again.');
    const {jsPDF}=window.jspdf;const pdf=new jsPDF({orientation:'portrait',unit:'in',format:'letter'});const pageW=8.5,pageH=11,margin=.45,usableH=pageH-.9;let y=margin;
    for(let i=0;i<cards.length;i++){
@@ -81,7 +98,7 @@
    else exportStatus('Word document created. Open it in Microsoft Word and check the page layout before printing.','ok');
  }
  }catch(e){exportStatus('Could not create the file: '+e.message,'error')}finally{btn.disabled=false}}
- $('exportFormat').addEventListener('change',()=>{const f=$('exportFormat').value;$('makeBtn').textContent=f==='pdf'?'Create PDF':f==='google'?'Prepare for Google Docs':'Create Word document';$('formatHint').textContent=f==='word'?'Microsoft Word is the recommended option.':f==='google'?'A compatible .doc file will download. Upload it to Google Drive, then open it with Google Docs. No paid subscription is required.':'A printable PDF will download. For best print results, choose Actual Size or 100% in your printer settings.'});
+ $('exportFormat').addEventListener('change',()=>{const f=$('exportFormat').value;$('makeBtn').textContent=f==='pdf'?'Create PDF':f==='google'?'Create Google Doc':'Create Word document';$('formatHint').textContent=f==='word'?'Microsoft Word is the recommended option.':f==='google'?'A Google Doc will be created with your selected question images. Upload it to Google Drive, then open it with Google Docs. No paid subscription is required.':'A printable PDF will download. For best print results, choose Actual Size or 100% in your printer settings.'});
  $('makeBtn').addEventListener('click',makeDoc);updateTestOptions();status('Please select a type of test to begin.');$('qhint').textContent='Choose SAT, PSAT 10, or PSAT 8/9, then select a practice test, section, and module.';init();
 })();
 </script></body></html>
