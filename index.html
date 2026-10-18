@@ -131,6 +131,7 @@ h2{font-size:18px;margin:0 0 14px}
  const RAW_BASE=`https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH}/`;
  const $=id=>document.getElementById(id);
  let files=[],current=[];
+ const selectedPaths=new Set();
 
  const testCounts={
    sat:[4,5,6,7,8,9,10,11],
@@ -273,7 +274,12 @@ h2{font-size:18px;margin:0 0 14px}
      const cb=document.createElement('input');
      cb.type='checkbox';
      cb.value=f.path;
-     cb.checked=false;
+     cb.checked=selectedPaths.has(f.path);
+     cb.addEventListener('change',()=>{
+       if(cb.checked)selectedPaths.add(f.path);
+       else selectedPaths.delete(f.path);
+       updateSelectionHint();
+     });
      const text=document.createElement('span');
      text.textContent='Question '+n;
      label.append(cb,text);
@@ -281,7 +287,20 @@ h2{font-size:18px;margin:0 0 14px}
    });
 
    status(`Question bank connected. Found ${current.length} images for ${collectionLabel()} Test ${$('test').value} — ${$('section').selectedOptions[0].text} — ${$('module').selectedOptions[0].text}.`,'ok');
-   $('qhint').textContent='Select the question numbers you missed. You can select any combination.';
+   updateSelectionHint();
+ }
+
+ function updateSelectionHint(){
+   const count=selectedPaths.size;
+   $('qhint').textContent=count
+     ? `${count} question image(s) selected across modules. Changing modules will keep your previous selections.`
+     : 'Select the question numbers you missed. You can change modules and your selections will be kept.';
+ }
+
+ function clearSelections(){
+   selectedPaths.clear();
+   document.querySelectorAll('#questions input[type=checkbox]').forEach(x=>x.checked=false);
+   updateSelectionHint();
  }
 
  async function init(){
@@ -300,11 +319,13 @@ h2{font-size:18px;margin:0 0 14px}
  }
 
  $('collection').addEventListener('change',()=>{
+   clearSelections();
    updateTestOptions();
    renderQuestions();
  });
 
  $('test').addEventListener('change',()=>{
+   clearSelections();
    const chosen=!!$('test').value;
    $('section').disabled=!chosen;
    $('module').disabled=true;
@@ -314,6 +335,7 @@ h2{font-size:18px;margin:0 0 14px}
  });
 
  $('section').addEventListener('change',()=>{
+   // Keep selections when switching between Mathematics and Reading & Writing.
    const chosen=!!$('section').value;
    $('module').disabled=!chosen;
    $('module').value='';
@@ -323,11 +345,15 @@ h2{font-size:18px;margin:0 0 14px}
  $('module').addEventListener('change',renderQuestions);
 
  $('allBtn').addEventListener('click',()=>{
+   current.forEach(f=>selectedPaths.add(f.path));
    document.querySelectorAll('#questions input[type=checkbox]').forEach(x=>x.checked=true);
+   updateSelectionHint();
  });
 
  $('noneBtn').addEventListener('click',()=>{
+   current.forEach(f=>selectedPaths.delete(f.path));
    document.querySelectorAll('#questions input[type=checkbox]').forEach(x=>x.checked=false);
+   updateSelectionHint();
  });
 
  function dataURL(blob){
@@ -416,9 +442,9 @@ h2{font-size:18px;margin:0 0 14px}
  }
 
  async function makeDoc(){
- const selected=[...document.querySelectorAll('#questions input[type="checkbox"]:checked')]
-  .map(cb=>current.find(f=>f.path===cb.value))
-  .filter(Boolean);
+   const selected=[...selectedPaths]
+     .map(path=>files.find(f=>f.path===path))
+     .filter(Boolean);
 
    if(!selected.length){
      exportStatus('Please select at least one question before creating the document.','error');
@@ -464,39 +490,37 @@ h2{font-size:18px;margin:0 0 14px}
 
        const {jsPDF}=window.jspdf;
        const pdf=new jsPDF({orientation:'portrait',unit:'in',format:'letter'});
-       const pageW=8.5,pageH=11,margin=.45,gap=.12;
-       const usableW=pageW-2*margin;
-       const usableH=pageH-2*margin;
-       const drawW=Math.min(width,usableW);
-       const slotH=(usableH-gap*(per-1))/per;
-       let added=0;
+       const pageW=8.5,pageH=11,margin=.45,usableH=pageH-.9;
+       let y=margin;
 
        for(let i=0;i<cards.length;i++){
-         const slot=i%per;
-         if(i>0&&slot===0) pdf.addPage();
+         exportStatus(`Adding image ${i+1} of ${cards.length} to PDF…`);
+
+         if(i>0&&i%per===0){
+           pdf.addPage();
+           y=margin;
+         }
 
          const c=cards[i];
-         exportStatus(`Adding image ${i+1} of ${cards.length} to PDF…`);
-         const ratio=Math.min(drawW/c.w,slotH/c.h);
-         const imageW=c.w*ratio;
-         const imageH=c.h*ratio;
-         const x=margin+(usableW-imageW)/2;
-         const slotTop=margin+slot*(slotH+gap);
-         const y=slotTop+(slotH-imageH)/2;
+         const drawW=Math.min(width,pageW-2*margin);
+         const drawH=Math.min(drawW*c.h/c.w,Math.max(1.2,usableH/per));
+
+         if(y+drawH>pageH-margin){
+           pdf.addPage();
+           y=margin;
+         }
+
          const type=c.data.startsWith('data:image/jpeg')||c.data.startsWith('data:image/jpg')?'JPEG':'PNG';
-         pdf.addImage(c.data,type,x,y,imageW,imageH,`question-${i}-${c.num}`,'FAST');
-         added++;
+         pdf.addImage(c.data,type,margin,y,drawW,drawH,undefined,'FAST');
+         y+=drawH+.12;
        }
 
-       if(added!==selected.length||added!==cards.length){
-         throw new Error(`PDF verification failed: added ${added} of ${selected.length} selected images. No file was downloaded.`);
+       if(cards.length!==selected.length){
+         throw new Error('The PDF did not include every selected image.');
        }
-       const pdfBlob=pdf.output('blob');
-       if(!pdfBlob||pdfBlob.size===0){
-         throw new Error('The PDF file was empty. No file was downloaded.');
-       }
+
        pdf.save(baseName+'.pdf');
-       exportStatus(`PDF created with ${added} selected images: ${cards.map(c=>'Question '+c.num).join(', ')}. Check the downloaded file to confirm all listed questions appear.`,'ok');
+       exportStatus(`PDF created successfully with all ${cards.length} selected images. For best print results, choose Actual Size or 100% in your printer settings.`,'ok');
 
      }else{
        if(!window.docx){
@@ -506,6 +530,8 @@ h2{font-size:18px;margin:0 0 14px}
        const {Document,Packer,Paragraph,ImageRun,PageBreak}=window.docx;
        const children=[];
 
+       // Insert each selected image as its own paragraph. Add explicit page-break
+       // paragraphs between groups so every image is retained in document order.
        for(let i=0;i<cards.length;i++){
          const c=cards[i];
          exportStatus(`Adding image ${i+1} of ${cards.length} to Word document…`);
@@ -547,12 +573,12 @@ h2{font-size:18px;margin:0 0 14px}
          throw new Error(`Word preparation check failed: expected ${expectedParagraphs} document paragraphs but built ${children.length}. No file was created.`);
        }
 
-       const doc = new Document({
-         sections: [{
-           properties: {
-             page: {
-               size: { width: 12240, height: 15840 },
-               margin: { top: 648, right: 648, bottom: 648, left: 648 }
+       const doc=new Document({
+         sections:[{
+           properties:{
+             page:{
+               size:{width:12240,height:15840},
+               margin:{top:648,right:648,bottom:648,left:648}
              }
            },
            children
